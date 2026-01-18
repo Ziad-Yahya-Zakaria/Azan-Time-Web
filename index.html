@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>أذان تايم ويب</title>
+    <title>أذان تايم ويب - المطور</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root { --primary: #0a261c; --accent: #b89564; --light: #f4f1e6; }
         * { -webkit-tap-highlight-color: transparent; outline: none; box-sizing: border-box; }
@@ -38,20 +39,43 @@
         }
         .page.active { display: block; }
         
-        #page-quran { padding: 0 !important; overflow: hidden; position: relative; }
-        .embed-container { 
-            position: relative; 
-            width: 100%; 
-            height: 100%; 
-            overflow: hidden; 
+        /* تنسيقات قارئ المصحف الجديد */
+        #page-quran { padding: 0 !important; overflow: hidden; position: relative; background: #2c2c2c; }
+        .pdf-viewer-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
         }
-        .embed-container iframe { 
+        #pdf-canvas {
+            max-width: 100%;
+            height: auto;
+            margin: auto;
+            display: block;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .pdf-controls {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%; 
-            height: 100%; 
-            border: 0; 
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(10, 38, 28, 0.9);
+            padding: 8px 15px;
+            border-radius: 30px;
+            border: 1px solid var(--accent);
+            z-index: 100;
+        }
+        .pdf-btn { color: white; padding: 5px 10px; font-weight: bold; }
+        .index-modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            display: none;
+            padding: 20px;
+            overflow-y: auto;
         }
 
         .card { 
@@ -139,8 +163,25 @@
 </div>
 
 <div id="page-quran" class="page active">
-    <div class="embed-container">
-        <iframe src="https://qurancomplex.gov.sa/isdarat-hafs/#flipbook-df_11311/1/" allowfullscreen></iframe>
+    <div class="pdf-viewer-container">
+        <div id="loading-pdf" class="absolute inset-0 flex items-center justify-center text-white z-50">جاري تحميل المصحف...</div>
+        <canvas id="pdf-canvas"></canvas>
+        
+        <div class="pdf-controls">
+            <button class="pdf-btn" onclick="prevPage()">السابق</button>
+            <span id="page-num" class="text-accent text-sm self-center">...</span>
+            <button class="pdf-btn" onclick="nextPage()">التالي</button>
+            <button class="pdf-btn border-r pr-2 mr-2" onclick="toggleIndex()">الفهرس</button>
+        </div>
+
+        <div id="index-modal" class="index-modal">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white font-bold">الفهرس السريع</h3>
+                <button onclick="toggleIndex()" class="text-red-500">إغلاق</button>
+            </div>
+            <div id="index-list" class="grid grid-cols-2 gap-2">
+                </div>
+        </div>
     </div>
 </div>
 
@@ -225,6 +266,14 @@
 <audio id="azP" src="https://www.islamcan.com/common/azan/azan1.mp3"></audio>
 
 <script>
+    // متغيرات قارئ الـ PDF
+    let pdfDoc = null,
+        pageNum = 1,
+        ctx = document.getElementById('pdf-canvas').getContext('2d');
+
+    // رابط ملف الـ PDF (استخدمنا Proxy لتجنب مشاكل الـ CORS)
+    const pdfUrl = 'https://raw.githubusercontent.com/Ziad-Yahya-Zakaria/Azan-Time-Web/cf1226493ed0aca0d724676fcdbf6a7ed5a1314c/Noor-Book.com%20%20%D8%A7%D9%84%D9%82%D8%B1%D8%A7%D9%84%D9%86%20%D8%A7%D9%84%D9%83%D8%B1%D9%8A%D9%85.pdf';
+
     const player = document.getElementById('mainP');
     const azan = document.getElementById('azP');
     let pT = {};
@@ -236,6 +285,7 @@
     ];
 
     async function init() {
+        // تحميل بيانات القراء
         const res = await fetch('https://api.alquran.cloud/v1/surah');
         const data = await res.json();
         const suras = data.data;
@@ -246,9 +296,54 @@
                 <svg class="w-5 h-5 fill-emerald-900" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
             </div>
         `).join('');
+
+        // تحميل الفهرس (مثال لبعض السور)
+        const sampleIndex = [
+            {n: 'الفاتحة', p: 1}, {n: 'البقرة', p: 2}, {n: 'آل عمران', p: 50},
+            {n: 'النساء', p: 77}, {n: 'المائدة', p: 106}, {n: 'الكهف', p: 293},
+            {n: 'يس', p: 440}, {n: 'جزء عم', p: 582}
+        ];
+        document.getElementById('index-list').innerHTML = sampleIndex.map(i => `
+            <button onclick="goToPage(${i.p})" class="bg-emerald-900/50 text-white p-3 rounded-lg text-sm">${i.n}</button>
+        `).join('');
+
         loadP();
+        loadPDF();
     }
 
+    // وظائف قارئ PDF
+    async function loadPDF() {
+        try {
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            pdfDoc = await loadingTask.promise;
+            document.getElementById('loading-pdf').style.display = 'none';
+            renderPage(pageNum);
+        } catch (err) {
+            document.getElementById('loading-pdf').innerText = 'خطأ في تحميل الملف';
+        }
+    }
+
+    async function renderPage(num) {
+        const page = await pdfDoc.getPage(num);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.getElementById('pdf-canvas');
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        document.getElementById('page-num').textContent = `صفحة ${num} من ${pdfDoc.numPages}`;
+    }
+
+    function prevPage() { if (pageNum <= 1) return; pageNum--; renderPage(pageNum); }
+    function nextPage() { if (pageNum >= pdfDoc.numPages) return; pageNum++; renderPage(pageNum); }
+    function goToPage(p) { pageNum = p; renderPage(p); toggleIndex(); }
+    function toggleIndex() { 
+        const m = document.getElementById('index-modal');
+        m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+    }
+
+    // باقي الوظائف الأصلية (لم يتم تغييرها)
     function togglePlayerView() {
         document.getElementById('pBar').classList.toggle('hidden-player');
     }
@@ -312,9 +407,7 @@
         const now = new Date();
         const cur = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
         
-        // الجزء المسؤول عن تشغيل الأذان تلقائياً عند مطابقة الوقت
         if(Object.values(pT).includes(cur) && azan.paused && now.getSeconds() < 2) {
-            // إيقاف أي صوت آخر يعمل لضمان سماع الأذان
             if(!player.paused) player.pause();
             azan.play();
             document.getElementById('azanStatus').classList.remove('hidden');
@@ -348,7 +441,6 @@
         document.getElementById('needle').style.transform = `rotate(${-n}deg)`;
     }, true);
 
-    // ملاحظة: الأذان التلقائي يتطلب تفاعل المستخدم مرة واحدة مع الصفحة (مثلاً النقر على أي مكان) لتجاوز قيود المتصفحات
     window.addEventListener('click', () => { if(azan.paused) { azan.play(); azan.pause(); } }, { once: true });
 
     init();
