@@ -3,272 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إيقاف الخدمة النهائي | أذان تايم ويب</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>إيقاف الخدمة | أذان تايم ويب</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
-
+        /* نظام الألوان الخاص بـ Nginx والصفحات التقنية البسيطة */
         :root {
-            --primary: #00d4ff;
-            --danger: #ff006e;
-            --bg: #0a0a0a;
-            --accent: #1a1a2e;
-            --text: #e0e0e0;
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --border-color: #eaeaea;
+            --secondary-text: #666666;
         }
 
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--bg) 0%, var(--accent) 100%);
-            color: var(--text); overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            perspective: 1000px;
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
         }
 
-        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-
-        .main-wrapper { 
-            position: relative; z-index: 10; 
-            width: 100%; max-width: 800px; 
+        .container {
+            max-width: 600px;
             padding: 20px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-height: 100vh;
         }
 
-        /* الكارت الزجاجي مع تحسينات */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50px;
-            padding: 50px;
-            text-align: center;
-            box-shadow: 0 50px 100px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);
-            transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(45deg, transparent 30%, rgba(0, 212, 255, 0.1) 50%, transparent 70%);
-            pointer-events: none;
-        }
-
-        /* تصميم الروبوت المطفأ مع تحسينات */
-        .robot-head {
-            width: 120px; height: 100px;
-            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-            margin: 0 auto 30px;
-            border-radius: 25px;
-            position: relative;
-            border: 2px solid #444;
-            display: flex; align-items: center; justify-content: center;
-            gap: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
-
-        .eye {
-            width: 22px; height: 22px;
-            background: #000;
-            border-radius: 50%;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid #666;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
-        }
-
-        .pupil {
-            width: 10px; height: 10px;
-            background: var(--danger);
-            border-radius: 50%;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px var(--danger);
-            transition: all 0.3s ease;
-        }
-
-        /* نصوص الكارت مع خطوط أنيقة */
-        .badge { 
-            color: var(--primary); 
-            font-size: 0.9rem; 
-            margin-bottom: 20px; 
-            display: block; 
-            font-weight: 600; 
-            letter-spacing: 1px; 
-            text-transform: uppercase;
-        }
-        h1 { 
-            font-size: clamp(2.5rem, 8vw, 4rem); 
-            margin: 15px 0; 
-            font-weight: 900; 
-            color: #fff; 
-            letter-spacing: -1px;
-            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-        }
-
-        .legal-box {
-            background: rgba(255, 0, 110, 0.05);
-            border-right: 4px solid var(--danger);
-            padding: 20px; 
-            margin: 30px 0;
-            text-align: right; 
-            color: #b0b0b0; 
-            line-height: 1.8;
-            border-radius: 15px;
-            font-weight: 400;
-        }
-
-        .social-links { 
-            display: flex; 
-            justify-content: center; 
-            gap: 20px; 
-            margin-top: 20px;
-        }
-        .social-btn {
-            width: 50px; height: 50px; 
-            background: rgba(255,255,255,0.08);
-            border-radius: 15px; 
-            display: flex; align-items: center; justify-content: center;
-            color: white; 
-            text-decoration: none; 
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .social-btn:hover { 
-            background: var(--primary); 
-            transform: translateY(-8px) scale(1.05); 
-            box-shadow: 0 10px 25px rgba(0, 212, 255, 0.3);
-        }
-
-        .dev-name { 
-            display: block; 
-            font-weight: 700; 
-            color: #fff; 
-            margin-top: 10px; 
-            font-size: 1.1rem;
-            letter-spacing: 0.5px;
-        }
-
-        footer {
-            position: fixed; 
-            bottom: 20px; 
-            width: 100%; 
-            text-align: center;
-            z-index: 10; 
-            color: #666; 
-            font-size: 0.8rem;
+        h1 {
+            font-size: 24px;
             font-weight: 500;
-            letter-spacing: 1px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            display: inline-block;
+            min-width: 300px;
         }
 
-        /* تحسينات إضافية للمظهر التقني */
-        .glass-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 60px 120px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.2);
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        .details {
+            font-size: 14px;
+            color: var(--secondary-text);
+            margin-top: 30px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--secondary-text);
+        }
+
+        .dev-info {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* إضافة لمسة احترافية بسيطة: التاريخ */
+        #current-date {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <div id="canvas-container"></div>
+    <div class="container">
+        <h1>إيقاف الخدمة النهائي</h1>
+        
+        <p>
+            بناءً على مقتضيات <strong>حماية الملكية الفكرية</strong>، نعلن عن الإيقاف النهائي لنظام "أذان تايم ويب" نظراً للاختلاف في السياسات التشغيلية. 
+            <br>
+            هذا القرار قطعي ونافذ اعتباراً من تاريخ اليوم: <span id="current-date"></span>.
+        </p>
 
-    <div class="main-wrapper">
-        <div class="glass-card" id="tilt-card">
-            <div class="robot-head">
-                <div class="eye"><div class="pupil"></div></div>
-                <div class="eye"><div class="pupil"></div></div>
-            </div>
+        <div class="details">
+            المطور: زياد يحي زكريا <br>
+            <a href="https://github.com/Ziad-Yahya-Zakaria">GitHub</a> | 
+            <a href="https://www.linkedin.com/in/zssd/">LinkedIn</a>
+        </div>
 
-            <span class="badge">نظام أذان تايم ويب</span>
-            <h1>خارج الخدمة نهائياً</h1>
-            
-            <div class="legal-box">
-                بناءً على مقتضيات <b style="color:#fff">حماية الملكية الفكرية</b>، نعلن عن الإيقاف النهائي للبرنامج نظراً للاختلاف في السياسات التشغيلية. القرار قطعي ونافذ فوراً.
-            </div>
-
-            <div class="social-links">
-                <a href="https://github.com/Ziad-Yahya-Zakaria" target="_blank" class="social-btn"><i class="fab fa-github"></i></a>
-                <a href="https://www.linkedin.com/in/zssd/" target="_blank" class="social-btn"><i class="fab fa-linkedin-in"></i></a>
-            </div>
-
-            <div style="margin-top: 30px; font-size: 0.95rem; color: #a0a0a0;">
-                مع تحياتي <span class="dev-name">زياد يحي زكريا</span>
-            </div>
+        <div class="footer">
+            DOTFLOW ENGINE / 1.0.0 (Nginx-Style) <br>
+            All Rights Reserved &copy; <span id="year"></span>
         </div>
     </div>
 
-    <footer>DOTFLOW ENGINE © 2026 | ALL RIGHTS RESERVED</footer>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 1. خلفية الجزيئات (Particles) مع تحسينات
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        const starGeo = new THREE.BufferGeometry();
-        const starCount = 4000;
-        const posArray = new Float32Array(starCount * 3);
-        for(let i=0; i<starCount*3; i++) { posArray[i] = (Math.random() - 0.5) * 6; }
-        starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const starMat = new THREE.PointsMaterial({ size: 0.008, color: 0x00d4ff, transparent: true, opacity: 0.8 });
-        const starMesh = new THREE.Points(starGeo, starMat);
-        scene.add(starMesh);
-        camera.position.z = 2;
-
-        // 2. حركة العين والتميل (Tilt & Eyes) مع تحسينات
-        const pupils = document.querySelectorAll('.pupil');
-        const card = document.getElementById('tilt-card');
-
-        document.addEventListener('mousemove', (e) => {
-            const { clientX, clientY } = e;
-            const x = (clientX / window.innerWidth) - 0.5;
-            const y = (clientY / window.innerHeight) - 0.5;
-
-            // تميل الكارت
-            card.style.transform = `rotateY(${x * 20}deg) rotateX(${-y * 20}deg) translateZ(50px)`;
-
-            // حركة بؤبؤ العين
-            pupils.forEach(pupil => {
-                const moveX = x * 15;
-                const moveY = y * 15;
-                pupil.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
-                pupil.style.background = '#ff006e';
-                pupil.style.boxShadow = '0 0 20px #ff006e';
-            });
-
-            // تحريك الجزيئات مع الماوس
-            starMesh.rotation.y = x * 0.7;
-            starMesh.rotation.x = y * 0.7;
-        });
-
-        // خفوت العين عند التوقف عن الحركة
-        document.addEventListener('mouseleave', () => {
-            pupils.forEach(p => { 
-                p.style.background = '#450a0a'; 
-                p.style.boxShadow = 'none'; 
-            });
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            starMesh.rotation.y += 0.002;
-            starMesh.rotation.x += 0.001;
-            renderer.render(scene, camera);
+        // تحديث تاريخ اليوم تلقائياً
+        function updateDate() {
+            const now = new Date();
+            
+            // تنسيق التاريخ بالعربية
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = now.toLocaleDateString('ar-EG', options);
+            
+            document.getElementById('current-date').textContent = formattedDate;
+            document.getElementById('year').textContent = now.getFullYear();
         }
-        animate();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        // تشغيل الدالة عند تحميل الصفحة
+        window.onload = updateDate;
     </script>
+
 </body>
 </html>
